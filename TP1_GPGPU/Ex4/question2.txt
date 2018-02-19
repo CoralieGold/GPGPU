@@ -1,0 +1,72 @@
+---- Temps d'allocation et de calcul sur GPU ----
+
+-------------------------------------------------
+width = 1 000
+height = 1 000
+
+nbThreads = 256
+gridSize = [16, 16]
+blockSize = [63, 63]
+
+temps d'allocation : 0.540832 ms
+temps de calcul : 0.201696 ms
+
+-------------------
+
+width = 10 000
+height = 10 000
+
+nbThreads = 256
+gridSize = [16, 16]
+blockSize = [625, 625]
+
+temps d'allocation : 1.42499 ms
+temps de calcul : 19.0495 ms
+
+-------------------
+
+width = 1 000
+height = 1 000
+
+nbThreads = 512
+gridSize = [22, 22]
+blockSize = [46, 46]
+
+temps d'allocation : 0.287968 ms
+temps de calcul : 0.213888 ms
+
+-------------------
+
+width = 10 000
+height = 10 000
+
+nbThreads = 512
+gridSize = [22, 22]
+blockSize = [455, 455]
+
+temps d'allocation : 0.703072 ms
+temps de calcul : 20.7104 ms
+
+-------------------
+
+width = 1 000
+height = 1 000
+
+nbThreads = 1024
+gridSize = [32, 32]
+blockSize = [32, 32]
+
+temps d'allocation : 0.236064 ms
+temps de calcul : 0.214016 ms
+
+-------------------
+
+width = 10 000
+height = 10 000
+
+nbThreads = 1024
+gridSize = [22, 22]
+blockSize = [313, 313]
+
+temps d'allocation : 0.668896 ms
+temps de calcul : 19.4652 ms

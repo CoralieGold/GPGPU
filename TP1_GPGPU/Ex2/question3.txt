@@ -1,0 +1,61 @@
+---- Temps d'allocation et de calcul sur GPU ----
+
+-------------------------------------------------
+size = 1 000
+nbBlocks = 4
+nbThreads = 256
+
+temps de calcul CPU :
+temps d'allocation GPU : 0.157696 ms
+temps de calcul GPU : 0.019488 ms
+
+-------------------
+
+size = 1 000 000
+nbBlocks = 4
+nbThreads = 256
+
+temps d'allocation : 0.250912 ms
+temps de calcul : 0.191488 ms
+ 
+-------------------
+
+size = 1 000
+nbBlocks = 2
+nbThreads = 512
+
+temps d'allocation : 0.125536 ms
+temps de calcul : 0.016352 ms
+
+-------------------
+
+size = 1 000 000
+nbBlocks = 1954
+nbThreads = 512
+
+temps d'allocation : 0.277536 ms
+temps de calcul : 0.194528 ms
+
+-------------------
+
+size = 1 000
+nbBlocks = 1
+nbThreads = 1024
+
+temps d'allocation : 0.16736 ms
+temps de calcul : 0.017408 ms
+
+-------------------
+
+size = 1 000 000
+nbBlocks = 977
+nbThreads = 1024
+
+temps d'allocation : 0.228928 ms
+temps de calcul : 0.198624 ms
+
+-------------------
+
+
+Conclusion :
+Lorsque les calculs se font avec beaucoup de threads, ils sont plus rapides. Par exemple, pour le dernier cas, le CPU met 4ms environ a faire un calcul que fait le GPU en moins d'1ms. Mais, les calculs sur GPU sont efficaces quand le nombre en entree est important : avec une taille de 1000, le calcul CPU est plus rapide que celui faire sur GPU (0.006ms contre environ 0.03ms).

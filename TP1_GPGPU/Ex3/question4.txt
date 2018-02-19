@@ -1,0 +1,62 @@
+---- Temps d'allocation et de calcul sur GPU ----
+
+-------------------------------------------------
+Lena.png --> 1MB on Device
+
+nbThreads = 256
+gridSize = [16, 16]
+blockSize = [32, 32]
+
+temps d'allocation : 0.20352 ms
+temps de calcul : 0.411616 ms
+
+-------------------
+
+nbThreads = 512
+gridSize = [22, 22]
+blockSize = [24, 24]
+
+temps d'allocation : 0.182272 ms
+temps de calcul : 0.44848 ms
+
+-------------------
+
+nbThreads = 1024
+gridSize = [32, 32]
+blockSize = [16, 16]
+
+temps d'allocation : 0.156672 ms
+temps de calcul : 0.412672 ms
+
+-------------------------------------------------
+another image (12000 x 6160) --> 422MB on Device
+
+nbThreads = 256
+gridSize = [16, 16]
+blockSize = [750, 385]
+
+temps d'allocation : 0.336512 ms
+temps de calcul : 115.364 ms
+
+-------------------
+
+nbThreads = 512
+gridSize = [22, 22]
+blockSize = [546, 280]
+
+temps d'allocation : 0.36864 ms
+temps de calcul : 121.764 ms
+
+-------------------
+
+nbThreads = 1024
+gridSize = [32, 32]
+blockSize = [375, 193]
+
+temps d'allocation : 0.312352 ms
+temps de calcul : 115.239 ms
+
+-------------------------------------------------
+
+Conclusion :
+Les calculs faits sur le GPU sont très efficaces. Les images sont traitées en quelques millisecondes, meme sur des images plus grandes. Pour le troisième cas (Lena.png - 1024 threads), le CPU met 13ms environ à effectuer le calcul, alors que le GPU le fait en moins de 0.5ms (en prenant en compte le temps d'allocation). Cette différence est déjà importante, et elle est de plus en plus frappante quand l'image est plus grande (pour le dernier cas, le CPU a mis plus de 1.7 seconde, contre 115ms pour le GPU).
