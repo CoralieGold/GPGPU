@@ -16,7 +16,7 @@
 
 namespace IMAC
 {
-	__device__ float clampf(const float val, const float min , const float max);
+	__device__ float clampfCuda(const float val, const float min , const float max);
 
 	__global__ void convolution(const uchar4 *const dev_inputImg,
 								const float *const dev_matConv,

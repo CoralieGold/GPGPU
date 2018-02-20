@@ -102,9 +102,9 @@ namespace IMAC
 						dY = imgHeight - 1;
 
 					const int idMat		= j * matSize + i;
-					const int idPixel	= dY * imgWidth + dX;
+					// const int idPixel	= dY * imgWidth + dX;
 
-					img = tex2D(texInputImg, dX, dY);
+					img = tex2D(texInputImg, dX + 0.5f, dY + 0.5f);
 					sum.x += (float)img.x * dev_inputMatConv[idMat];
 					sum.y += (float)img.y * dev_inputMatConv[idMat];
 					sum.z += (float)img.z * dev_inputMatConv[idMat];
@@ -132,14 +132,13 @@ namespace IMAC
 		ChronoGPU chrGPU;
 
 		// 3 arrays for GPU
-		// uchar4 *dev_inputImg = NULL;
+		uchar4 *dev_inputImg = NULL;
 		uchar4 *dev_output = NULL;
+		size_t srcPitch;
 		
 		/// TODOOOOOOOOOOOOOO
 		cudaDeviceProp prop;
 		cudaGetDeviceProperties( &prop, 0);
-		// static cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<uchar4>();
-
 		int gridSize_x = sqrt(prop.maxThreadsPerBlock);
 		int gridSize_y = sqrt(prop.maxThreadsPerBlock);
 		int blockSize_x = (imgWidth + gridSize_x - 1) / gridSize_x;
@@ -150,34 +149,29 @@ namespace IMAC
 		
 
 		// Allocate arrays on device (input and ouput)
-		const size_t bytesImg = inputImg.size() * sizeof(uchar4);
+		const size_t bytesImg = inputImg.size() * sizeof(inputImg[0]);
 		std::cout 	<< "Allocating input (2 arrays): " 
 					<< ( ( 2 * bytesImg ) >> 20 ) << " MB on Device" << std::endl;
-		const size_t bytesMat = matSize * matSize * sizeof(float);
+		const size_t bytesMat = 15 * 15 * sizeof(float);
 		std::cout 	<< "Allocating input (1 array1): " 
-					<< ( ( 1 * bytesMat ) >> 20 ) << " MB on Device" << std::endl;				
+					<< ( ( 1 * bytesMat ) >> 20 ) << " MB on Device" << std::endl;
+
 		chrGPU.start();
 				
-		// cudaMalloc((void**) &dev_inputImg, bytesImg);
+		cudaMallocPitch((void**) &dev_inputImg, &srcPitch, imgWidth * sizeof(inputImg[0]), imgHeight);
 		cudaMalloc((void**) &dev_output, bytesImg);
 		
 		chrGPU.stop();
 		std::cout 	<< "-> Done (allocation) : " << chrGPU.elapsedTime() << " ms" << std::endl << std::endl;
 
-		// Set texture parameters
-	    texInputImg.addressMode[0] = cudaAddressModeClamp;
-	    texInputImg.addressMode[1] = cudaAddressModeClamp;
-	    texInputImg.filterMode = cudaFilterModeLinear;
-	    texInputImg.normalized = false;    // access with normalized texture coordinates
-
 		// Copy data from host to device (input arrays) 
-		// cudaMemcpy(dev_inputImg, &inputImg[0], bytesImg, cudaMemcpyHostToDevice);
-
-	    cudaArray *cuArray;
-    	cudaMallocArray(&cuArray, &(texInputImg.channelDesc), imgWidth, imgHeight);
-    	cudaMemcpyToArray(cuArray, 0, 0, inputImg.data(), bytesImg, cudaMemcpyHostToDevice);
-		cudaBindTextureToArray(texInputImg, cuArray);
-
+		cudaMemcpy2D(dev_inputImg, srcPitch, inputImg.data(), imgWidth * sizeof(inputImg[0]), imgWidth * sizeof(inputImg[0]), imgHeight, cudaMemcpyHostToDevice);
+		cudaError_t status = cudaBindTexture2D(NULL, texInputImg, dev_inputImg, cudaCreateChannelDesc<uchar4>(), imgWidth, imgHeight, srcPitch);
+		if(status != cudaSuccess) {
+			std::cout << "ERROR on cudaBindTexture2D : " << cudaGetErrorString(status) << std::endl;
+			return;
+		}
+		
 		cudaMemcpyToSymbol(dev_inputMatConv, matConv.data(), bytesMat, 0, cudaMemcpyHostToDevice);
 
 		chrGPU.start();
@@ -192,9 +186,8 @@ namespace IMAC
 		cudaMemcpy(&output[0], dev_output, bytesImg, cudaMemcpyDeviceToHost);
 
 		// Free arrays on device
-		// cudaFree(dev_inputImg);
+		cudaFree(dev_inputImg);
 		cudaUnbindTexture(texInputImg);
-		cudaFreeArray(cuArray);	
 		cudaFree(dev_output);
 
 		std::cout << "Checking result..." << std::endl;
