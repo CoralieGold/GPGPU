@@ -1,203 +1,89 @@
 ---- Temps d'allocation et de calcul sur GPU ----
 
--------------------------------------------------
-EXERCICE 1 :
--------------------------------------------------
-
+-------------------
 taille de l'image : 512x512
 taille de la matrice de convolution : 3x3
 
-temps d'allocation : 0.221184 ms
-temps de calcul : 0.322592 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 5x5
-
-temps d'allocation : 0.218112 ms
-temps de calcul : 0.719872 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 7x7
-
-temps d'allocation : 0.284992 ms
-temps de calcul : 1.28714 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 15x15
-
-temps d'allocation : 0.31952 ms
-temps de calcul : 5.40877 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 3x3
-
-temps d'allocation : 0.240832 ms
-temps de calcul : 10.454 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 5x5
-
-temps d'allocation : 0.24144 ms
-temps de calcul : 23.0389 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 7x7
-
-temps d'allocation : 0.247776 ms
-temps de calcul : 40.532 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 15x15
-
-temps d'allocation : 0.739392 ms
-temps de calcul : 160.852 ms
-
--------------------------------------------------
-EXERCICE 2 :
--------------------------------------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 3x3
-
-temps d'allocation : 0.151552 ms
-temps de calcul : 0.328704 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 5x5
-
-temps d'allocation : 0.14848 ms
-temps de calcul : 0.682976 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 7x7
-
-temps d'allocation : 0.245088 ms
-temps de calcul : 1.29434 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 15x15
-
-temps d'allocation : 0.249888 ms
-temps de calcul : 4.9961 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 3x3
-
-temps d'allocation : 0.176352 ms
-temps de calcul : 11.9009 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 5x5
-
-temps d'allocation : 0.16608 ms
-temps de calcul : 20.3244 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 7x7
-
-temps d'allocation : 0.425952 ms
-temps de calcul : 43.1359 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 15x15
-
-temps d'allocation : 0.179872 ms
-temps de calcul : 151.763 ms
-
-
--------------------------------------------------
-EXERCICE 3 :
--------------------------------------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 3x3
-
-temps d'allocation : 0.15664 ms
-temps de calcul : 0.32464 ms 
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 5x5
-
-temps d'allocation : 0.152608 ms
-temps de calcul : 0.584704 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 7x7
-
-temps d'allocation : 0.17104 ms
-temps de calcul : 0.996352 ms
-
--------------------
-
-taille de l'image : 512x512
-taille de la matrice de convolution : 15x15
-
-temps d'allocation : 0.204768 ms
-temps de calcul : 4.94797 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 3x3
-
-temps d'allocation : 0.163712 ms
-temps de calcul : 11.2456 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 5x5
-
-temps d'allocation : 0.168032 ms
-temps de calcul : 17.5883 ms
-
--------------------
-
-taille de l'image : 3264x2448
-taille de la matrice de convolution : 7x7
-
+Exercice 1 :
+temps d'allocation : 0.265184ms
+temps de calcul : 0.390176 ms
+
+Exercice 2 :
 temps d'allocation : 0.165888 ms
-temps de calcul : 36.4401 ms 
+temps de calcul : 0.425952 ms
+
+Exercice 3 :
+temps d'allocation : 0.06352 ms
+temps de calcul : 0.39424 ms
+
+Exercice 4 :
+temps d'allocation : 0.183296 ms
+temps de calcul : 0.417824 ms
 
 -------------------
 
-taille de l'image : 3264x2448
+taille de l'image : 512x512
+taille de la matrice de convolution : 5x5
+
+Exercice 1 :
+temps d'allocation : 0.248832 ms
+temps de calcul : 0.86016 ms
+
+Exercice 2 :
+temps d'allocation : 0.165856 ms
+temps de calcul : 0.818176 ms
+
+Exercice 3 :
+temps d'allocation : 0.147424 ms
+temps de calcul : 0.703488 ms
+
+Exercice 4 :
+temps d'allocation : 0.199456 ms
+temps de calcul : 0.75472 ms
+
+-------------------
+
+taille de l'image : 512x512
+taille de la matrice de convolution : 7x7
+
+Exercice 1 :
+temps d'allocation : 0.262112 ms
+temps de calcul : 1.54726 ms
+
+Exercice 2 :
+temps d'allocation : 0.14128 ms
+temps de calcul : 1.54112 ms
+
+Exercice 3 :
+temps d'allocation : 0.161536 ms
+temps de calcul : 1.29328 ms
+
+Exercice 4 :
+temps d'allocation : 0.161504 ms
+temps de calcul : 1.39165 ms
+
+-------------------
+
+taille de l'image : 512x512
 taille de la matrice de convolution : 15x15
 
-temps d'allocation : 0.214016 ms
-temps de calcul : 129.167 ms
+Exercice 1 :
+temps d'allocation : 0.247808 ms
+temps de calcul : 6.42253 ms
 
+Exercice 2 :
+temps d'allocation : 0.003104 ms
+temps de calcul : 5.97398 ms
 
----------
+Exercice 3 :
+temps d'allocation : 0.171648 ms
+temps de calcul : 4.97046 ms
+
+Exercice 4 :
+temps d'allocation : 0.16384 ms
+temps de calcul : 5.28589 ms
+
+-------------------
+Conclusion :
+Il est plus intéressant d'utiliser des variables constances et elles réduisent effectivement le temps de calcul, en prenant peut de temps à l'allocation. Cela se voit notamment dans le dernier cas (matrice 15 * 15 où on gagne 0.5 ms).
+Les textures permettent aussi de diminuer le temps de calcul, mais cela est plus efficace sur des textures 1D. En passant à des textures 2D, le calcul est plus long, meme si le temps d'allocation est plus faible.
