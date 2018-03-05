@@ -17,19 +17,24 @@ namespace IMAC
 	{
 		extern __shared__ uint dev_max[];
 
-		unsigned int tid = threadIdx.x;
-		unsigned int idx = tid + blockIdx.x * blockDim.x; // Id global du thread
-		dev_max[idx] = dev_array[idx];
+		int local_idx = threadIdx.x;
+		int global_idx = local_idx + blockIdx.x * blockDim.x; // Id global du thread
+		if(global_idx > size) {
+			dev_max[local_idx] = 0;
+		}
+		else {
+			dev_max[local_idx] = dev_array[global_idx];
+		}
 		__syncthreads();
 
-		for(unsigned int stage = 1; stage < blockDim.x; stage *= 2)  {
-			if(tid % (2*stage) == 0) {
-				dev_max[tid] = max(dev_max[tid], dev_max[tid + stage]);
+		for(unsigned int stage = blockDim.x / 2; stage > 0; stage >>= 1)  {
+			if(local_idx < stage) {
+				dev_max[local_idx] = umax(dev_max[local_idx], dev_max[local_idx + stage]);
 			}
 			__syncthreads();
 		}
 
-		if(tid == 0) {
+		if(local_idx == 0) {
 			dev_partialMax[blockIdx.x] = dev_max[0];
 		}
 	}

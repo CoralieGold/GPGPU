@@ -70,15 +70,17 @@ namespace IMAC
     float2 reduce(const uint *const dev_array, const uint size, uint &result)
 	{
         const uint2 dimBlockGrid = configureKernel<kernelType>(size);
+        const size_t sizeSharedMemory = dimBlockGrid.x * sizeof(uint);
 
 		// Allocate arrays (host and device) for partial result
 		/// TODO
-		std::vector<uint> host_partialMax(size); // Replace size !
+		std::vector<uint> host_partialMax(dimBlockGrid.y);
 
 		uint *dev_partialMax;
-		const size_t bytesPartialMax = size * sizeof(uint); // Replace bytes !
+		const size_t bytesPartialMax = dimBlockGrid.y * sizeof(uint); 
+
+		// Allocate array on GPU
 		HANDLE_ERROR( cudaMalloc( (void**)&dev_partialMax, bytesPartialMax ) );
-		HANDLE_ERROR( cudaMemcpy( dev_partialMax, dev_array, bytesPartialMax, cudaMemcpyHostToDevice ) );
 
 		ChronoGPU chrGPU;
 		float2 timing; // x: timing GPU, y: timing CPU
@@ -90,8 +92,8 @@ namespace IMAC
 			switch(kernelType) // Template : evaluation at compilation time ! ;-)
 			{
 				case KERNEL_EX1:
-					/// TODO EX 1
-					maxReduce_ex1<<<dimBlockGrid.y, dimBlockGrid.x>>>(dev_array, size, dev_partialMax);
+					/// TODO EX 1 
+					maxReduce_ex1<<< dimBlockGrid.y, dimBlockGrid.x, sizeSharedMemory >>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX2:
 					/// TODO EX 2
@@ -116,6 +118,7 @@ namespace IMAC
 		// Retrieve partial result from device to host
 		HANDLE_ERROR(cudaMemcpy(host_partialMax.data(), dev_partialMax, bytesPartialMax, cudaMemcpyDeviceToHost));
 
+
 		cudaFree(dev_partialMax);
 
         // Check for error
@@ -138,7 +141,6 @@ namespace IMAC
 		chrCPU.stop();
 
 		timing.y = chrCPU.elapsedTime(); // Stores time for host
-		
         return timing;
 	}  
     
