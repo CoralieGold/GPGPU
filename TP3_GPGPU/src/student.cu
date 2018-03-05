@@ -16,27 +16,27 @@ namespace IMAC
     void maxReduce_ex1(const uint *const dev_array, const uint size, uint *const dev_partialMax)
 	{
 		extern __shared__ uint dev_max[];
+		for(int global_idx = threadIdx.x + blockIdx.x * blockDim.x;
+			global_idx < size;
+			global_idx += blockDim.x * gridDim.x) {
 
-		int local_idx = threadIdx.x;
-		int global_idx = local_idx + blockIdx.x * blockDim.x; // Id global du thread
-		if(global_idx > size) {
-			dev_max[local_idx] = 0;
-		}
-		else {
+			int local_idx = threadIdx.x;
+			//int global_idx = local_idx + blockIdx.x * blockDim.x; // Id global du thread
 			dev_max[local_idx] = dev_array[global_idx];
-		}
-		__syncthreads();
-
-		for(unsigned int stage = blockDim.x / 2; stage > 0; stage >>= 1)  {
-			if(local_idx < stage) {
-				dev_max[local_idx] = umax(dev_max[local_idx], dev_max[local_idx + stage]);
-			}
 			__syncthreads();
-		}
 
-		if(local_idx == 0) {
-			dev_partialMax[blockIdx.x] = dev_max[0];
+			for(unsigned int stage = blockDim.x / 2; stage > 0; stage >>= 1)  {
+				if(local_idx < stage) {
+					dev_max[local_idx] = umax(dev_max[local_idx], dev_max[local_idx + stage]);
+				}
+				__syncthreads();
+			}
+
+			if(local_idx == 0) {
+				dev_partialMax[blockIdx.x] = dev_max[0];
+			}
 		}
+		
 	}
 
 	void studentJob(const std::vector<uint> &array, const uint resCPU /* Just for comparison */)
