@@ -47,6 +47,8 @@ namespace IMAC
 			break;
 			case KERNEL_EX2:
 				/// TODO EX 2
+				dimBlockGrid.x = MAX_NB_THREADS; 
+				dimBlockGrid.y = DEFAULT_NB_BLOCKS;
 			break;
 			case KERNEL_EX3:
 				/// TODO EX 3
@@ -97,6 +99,7 @@ namespace IMAC
 				break;
 				case KERNEL_EX2:
 					/// TODO EX 2
+					maxReduce_ex1<<< dimBlockGrid.y, dimBlockGrid.x, sizeSharedMemory >>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX3:
 					/// TODO EX 3
