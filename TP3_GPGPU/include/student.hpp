@@ -32,7 +32,14 @@ namespace IMAC
 
     __global__
     void maxReduce_ex1(const uint *const dev_array, const uint size, uint *const dev_partialMax);
-   
+    __global__
+    void maxReduce_ex2(const uint *const dev_array, const uint size, uint *const dev_partialMax);
+    __global__
+    void maxReduce_ex3(const uint *const dev_array, const uint size, uint *const dev_partialMax);
+    __global__
+    void maxReduce_ex4(const uint *const dev_array, const uint size, uint *const dev_partialMax);
+ 	__device__ void warpReduce(volatile uint* dev_max, int local_idx);
+
     template<uint kernelType>
     uint2 configureKernel(const uint sizeArray)
     {
@@ -43,18 +50,23 @@ namespace IMAC
 		{
 			case KERNEL_EX1:
 				dimBlockGrid.x = MAX_NB_THREADS; 
-				dimBlockGrid.y = DEFAULT_NB_BLOCKS;
+				// Faire en sorte que ça fonctionne pour toutes les tailles de tableau
+				dimBlockGrid.y = (sizeArray + MAX_NB_THREADS - 1) / MAX_NB_THREADS;
 			break;
 			case KERNEL_EX2:
 				/// TODO EX 2
 				dimBlockGrid.x = MAX_NB_THREADS; 
-				dimBlockGrid.y = DEFAULT_NB_BLOCKS;
+				dimBlockGrid.y = (sizeArray + MAX_NB_THREADS - 1) / MAX_NB_THREADS;
 			break;
 			case KERNEL_EX3:
 				/// TODO EX 3
+				dimBlockGrid.x = MAX_NB_THREADS; 
+				dimBlockGrid.y = (sizeArray + MAX_NB_THREADS - 1) / MAX_NB_THREADS;
 			break;
 			case KERNEL_EX4:
 				/// TODO EX 4
+				dimBlockGrid.x = MAX_NB_THREADS; 
+				dimBlockGrid.y = (sizeArray + MAX_NB_THREADS - 1) / MAX_NB_THREADS;
 			break;
 			case KERNEL_EX5:
 				/// TODO EX 5
@@ -72,10 +84,13 @@ namespace IMAC
     float2 reduce(const uint *const dev_array, const uint size, uint &result)
 	{
         const uint2 dimBlockGrid = configureKernel<kernelType>(size);
-        const size_t sizeSharedMemory = dimBlockGrid.x * sizeof(uint);
 
 		// Allocate arrays (host and device) for partial result
 		/// TODO
+		// Taille de la mémoire partagée
+		const size_t sizeSharedMemory = dimBlockGrid.x * sizeof(uint);
+
+		// On a besoin d'avoir comme taille le nombre de blocks 
 		std::vector<uint> host_partialMax(dimBlockGrid.y);
 
 		uint *dev_partialMax;
@@ -99,13 +114,15 @@ namespace IMAC
 				break;
 				case KERNEL_EX2:
 					/// TODO EX 2
-					maxReduce_ex1<<< dimBlockGrid.y, dimBlockGrid.x, sizeSharedMemory >>>(dev_array, size, dev_partialMax);
+					maxReduce_ex2<<< dimBlockGrid.y, dimBlockGrid.x, sizeSharedMemory >>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX3:
 					/// TODO EX 3
+					maxReduce_ex3<<< dimBlockGrid.y, dimBlockGrid.x, sizeSharedMemory >>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX4:
 					/// TODO EX 4
+					maxReduce_ex4<<< dimBlockGrid.y, dimBlockGrid.x, sizeSharedMemory >>>(dev_array, size, dev_partialMax);
 				break;
 				case KERNEL_EX5:
 					/// TODO EX 5
