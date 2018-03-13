@@ -1,0 +1,20 @@
+Loading images/Chateau.png
+Image has 2550 x 1917 pixels (RGB)
+4888350 - 4888350 - 4888350
+Process on CPU (sequential)
+ -> Done : 478.306 ms
+
+Save image as: images/Chateau_CPU.png
+============================================
+              STUDENT'S JOB !               
+============================================
+Allocating input, output and convolution matrix on GPU
+Process on GPU (80x60 blocks - 32x32 threads)
+============================ Naive
+-> Done (naive): 0.002048 ms
+Checking result...
+Error at index 0: a = [15,10,1] - b = [0,0,0] - 15
+ -> You failed, retry!
+Save image as: images/Chateau_GPU.png
+============================================
+

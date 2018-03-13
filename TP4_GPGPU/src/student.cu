@@ -17,16 +17,16 @@
 namespace IMAC
 {
 	// For image comparison
-	std::ostream &operator <<(std::ostream &os, const uchar4 &c)
+	std::ostream &operator <<(std::ostream &os, const uchar3 &c)
 	{
-		os << "[" << uint(c.x) << "," << uint(c.y) << "," << uint(c.z) << "," << uint(c.w) << "]";  
+		os << "[" << uint(c.x) << "," << uint(c.y) << "," << uint(c.z) << "]";  
     	return os; 
 	}
 
 	// __global__
- //    void convCUDA(	const uchar4 *const input, const uint imgWidth, const uint imgHeight, 
+ //    void convCUDA(	const uchar3 *const input, const uint imgWidth, const uint imgHeight, 
 	// 				const float *const matConv, const uint matSize,
-	// 				uchar4 *const output)
+	// 				uchar3 *const output)
 	// {
 	// 	for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) 
 	// 	{
@@ -56,7 +56,7 @@ namespace IMAC
 	// 	}
 	// }
 	
-	void compareImages(const std::vector<uchar4> &a, const std::vector<uchar4> &b)
+	void compareImages(const std::vector<uchar3> &a, const std::vector<uchar3> &b)
 	{
 		bool error = false;
 		if (a.size() != b.size())
@@ -69,8 +69,7 @@ namespace IMAC
 			for (uint i = 0; i < a.size(); ++i)
 			{
 				// Floating precision can cause small difference between host and device
-				if (	std::abs(a[i].x - b[i].x) > 2 || std::abs(a[i].y - b[i].y) > 2 
-					|| std::abs(a[i].z - b[i].z) > 2 || std::abs(a[i].w - b[i].w) > 2)
+				if (	std::abs(a[i].x - b[i].x) > 2 || std::abs(a[i].z - b[i].z) > 2 )
 				{
 					std::cout << "Error at index " << i << ": a = " << a[i] << " - b = " << b[i] << " - " << std::abs(a[i].x - b[i].x) << std::endl;
 					error = true;
@@ -88,18 +87,18 @@ namespace IMAC
 		}
 	}
 	
-    void studentJob(const std::vector<uchar4> &input, const uint imgWidth, const uint imgHeight, 
-					const std::vector<uchar4> &resultCPU, // Just for comparison
-                    std::vector<uchar4> &output)
+    void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, 
+					const std::vector<uchar3> &resultCPU, // Just for comparison
+                    std::vector<uchar3> &output)
 	{
 		ChronoGPU chrGPU;
 
 		// 3 arrays for GPU
-		uchar4 *dev_input = NULL;
-		uchar4 *dev_output = NULL;
+		uchar3 *dev_input = NULL;
+		uchar3 *dev_output = NULL;
 
 		// Allocate arrays on device (input and ouput)
-		const size_t bytesImg = input.size() * sizeof(uchar4);
+		const size_t bytesImg = input.size() * sizeof(uchar3);
 		std::cout 	<< "Allocating input, output and convolution matrix on GPU" << std::endl;
 		HANDLE_ERROR(cudaMalloc((void**)&dev_input, bytesImg));
 		HANDLE_ERROR(cudaMalloc((void**)&dev_output, bytesImg));
