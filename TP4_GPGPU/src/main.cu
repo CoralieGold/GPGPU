@@ -32,6 +32,21 @@ namespace IMAC
 		exit(EXIT_FAILURE);
 	}
 
+	// Compate two arrays (a and b) of size n. Return true if equal
+	bool compare(std::vector<float> &a, std::vector<float> &b, const int n)
+	{
+		for (int i = 0; i < n; ++i)
+		{
+			if (a[i] != b[i])
+			{
+				std::cout << "Error at index " << i  << ": a = " << a[i] << " - b = " << b[i] << std::endl;
+				return false; 
+			}
+		}
+		return true;
+	}
+
+
 	void rgbToHsvCPU(const std::vector<uchar3> &input, std::vector<float> &hue, std::vector<float> &saturation, std::vector<float> &value) {
 		float red, green, blue, cMax, cMin, delta;
 		for(int pixel = 0; pixel < input.size(); pixel ++) {
@@ -49,7 +64,7 @@ namespace IMAC
 			else if(cMax == green) hue[pixel] = 60.f * (((blue - red) / delta) + 2.f);
 			else if(cMax == blue)  hue[pixel] = 60.f * (((red - green) / delta) + 4.f);
 			else hue[pixel] = 0.f;
-			if(hue[pixel] < 0) hue[pixel] += 360;
+			if(hue[pixel] < 0) hue[pixel] += 360.f;
 
 			if(cMax != 0.f) saturation[pixel] = (float)(delta / cMax);
 			else saturation[pixel] = 0.f;
@@ -129,7 +144,6 @@ namespace IMAC
 		ChronoCPU chrCPU;
 		chrCPU.start();
 		
-		// TODO : Histogram CPU
 		int size = imgWidth*imgHeight;
 
 		std::vector<float> hue(size);
@@ -143,11 +157,11 @@ namespace IMAC
 
 		std::vector<int> repartition(NB_LEVELS);
 		cumulativeDistributionCPU(histogram, repartition);
-
-		std::vector<int> histogramEqualized(NB_LEVELS);
+		
 		equalizationCPU(value, repartition);
 
-		histogramCPU(histogramEqualized, value);
+		// std::vector<int> histogramEqualized(NB_LEVELS);
+		// histogramCPU(histogramEqualized, value);
 
 		hsvToRgbCPU(hue, saturation, value, output);
 
@@ -223,7 +237,7 @@ namespace IMAC
 
 		// Computation on CPU
 		histogramEqualizationCPU(input, imgWidth, imgHeight, outputCPU);
-		
+	
 		std::cout << "Save image as: " << outputCPUName << std::endl;
 		error = lodepng::encode(outputCPUName, reinterpret_cast<uchar *>(outputCPU.data()), imgWidth, imgHeight, LCT_RGB);
 		if (error)
@@ -235,7 +249,7 @@ namespace IMAC
 					<< "              STUDENT'S JOB !               "	<< std::endl
 					<< "============================================"	<< std::endl;
 
-		studentJob(input, imgWidth, imgHeight, outputCPU, outputGPU);
+		studentJob(input, imgWidth, imgHeight, NB_LEVELS, outputCPU, outputGPU);
 
 		std::cout << "Save image as: " << outputGPUName << std::endl;
 		error = lodepng::encode(outputGPUName, reinterpret_cast<uchar *>(outputGPU.data()), imgWidth, imgHeight, LCT_RGB);

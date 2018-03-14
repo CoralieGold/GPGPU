@@ -1,0 +1,6 @@
+Lena.png :
+
+CPU : 26.545 ms
+GPU : {
+	
+}

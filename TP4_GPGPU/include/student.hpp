@@ -16,9 +16,8 @@
 
 namespace IMAC
 {
-	// Init data andlaunches kernels
-    void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, 
-                    const std::vector<uchar3> &resCPU, // Just for comparison
+	void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, const uint nbLevels,
+					const std::vector<uchar3> &resultCPU, // Just for comparison
                     std::vector<uchar3> &output);
 }
 
