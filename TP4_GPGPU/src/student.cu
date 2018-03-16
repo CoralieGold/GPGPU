@@ -15,11 +15,10 @@ namespace IMAC
 	// For image comparison
 	std::ostream &operator <<(std::ostream &os, const uchar3 &c) {
 		os << "[" << uint(c.x) << "," << uint(c.y) << "," << uint(c.z) << "]";  
-    	return os; 
+		return os; 
 	}
 
-	__global__ void rgbToHsvCUDA(const uchar3 *const input, const uint imgWidth, const uint imgHeight, 
-								float *hue, float *saturation, float *value) {
+	__global__ void rgbToHsvCUDA(const uchar3 *const input, const uint imgWidth, const uint imgHeight, float *hue, float *saturation, float *value) {
 
 		
 		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) 
@@ -34,13 +33,13 @@ namespace IMAC
 
 				float cMax = fmax(fmax(red, green), blue);
 				float cMin = fmin(fmin(red, green), blue);
-				float delta = cMax - cMin;
+				float delta = (float)(cMax - cMin);
 
 				hue[idPixel] = 0.f;
-				if(cMax == red)   hue[idPixel] = 60.f * fmod(((green - blue) / delta), 6.f);
+				if(cMax == red)        hue[idPixel] = 60.f * fmod(((green - blue) / delta), 6.f);
 				else if(cMax == green) hue[idPixel] = 60.f * (((blue - red) / delta) + 2.f);
 				else if(cMax == blue)  hue[idPixel] = 60.f * (((red - green) / delta) + 4.f);
-				else hue[idPixel] = 0.f;
+				else                   hue[idPixel] = 0.f;
 				if(hue[idPixel] < 0.f) hue[idPixel] += 360.f;
 
 				if(cMax != 0.f) saturation[idPixel] = (float)(delta / cMax);
@@ -69,31 +68,31 @@ namespace IMAC
 				if(hue[idOut] < 60.f) {
 					red = c;
 					green = x;
-					blue = 0;
+					blue = 0.f;
 				}
 				else if(hue[idOut] >= 60.f && hue[idOut] < 120.f) {
 					red = x;
 					green = c;
-					blue = 0;
+					blue = 0.f;
 				}
 				else if(hue[idOut] >= 120.f && hue[idOut] < 180.f) {
-					red = 0;
+					red = 0.f;
 					green = c;
 					blue = x;
 				}
 				else if(hue[idOut] >= 180.f && hue[idOut] < 240.f) {
-					red = 0;
+					red = 0.f;
 					green = x;
 					blue = c;
 				}
 				else if(hue[idOut] >= 240.f && hue[idOut] < 300.f) {
 					red = x;
-					green = 0;
+					green = 0.f;
 					blue = c;
 				}
 				else {
 					red = c;
-					green = 0;
+					green = 0.f;
 					blue = x;
 				}
 
@@ -105,22 +104,56 @@ namespace IMAC
 	}
 
 	__global__ void cumulativeDistributionCUDA(const int *const histogram, int *repartition, const uint nbLevels) {
-		int distribution = 0;
-		for(int level = 0; level < nbLevels; ++ level) {
-			distribution += histogram[level];
-			repartition[level] = distribution;
+		// Mémoire partagée
+		extern __shared__ uint dev_repartition[];
+
+		// Identifiants du thread en local et global
+		int local_idx = threadIdx.x;
+		int global_idx = local_idx + blockIdx.x * blockDim.x;
+
+		// Eviter les erreurs d'accès mémoire
+		if(global_idx < nbLevels)
+			// Remplissage du tableau partagé
+			dev_repartition[local_idx] = histogram[global_idx];
+		else
+			dev_repartition[local_idx] = 0;
+		__syncthreads();
+
+
+		for(unsigned int stage = 1; stage < blockDim.x; stage *= 2)  {
+			int index = 2 * stage * local_idx;
+			if(index < blockDim.x) {
+				// Stockage de la valeur max
+				dev_repartition[index] = dev_repartition[index + stage] + dev_repartition[index];
+			}
+			__syncthreads();
+		}
+
+		// Garder la valeur max en résultat
+		if(local_idx == 0) {
+			repartition[blockIdx.x] = dev_repartition[0];
 		}
 	}
 
-	__global__ void histogramCUDA(int *histogram, const float *const value, const uint size) {
-	    for(int pixel = 0; pixel < size; pixel++) {
-	 		histogram[(int)value[pixel]*255] += 1;     
-	    }
+	__global__ void histogramCUDA(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
+		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) {
+			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x)  { 
+				int myId = x + y * imgWidth;
+			    int myItem = value[myId]*256;
+			    int myBin = myItem % nbLevels;
+				atomicAdd(&histogram[myBin], 1);
+			}
+		}
 	}
 
-	__global__ void equalizationCUDA(float *value, const int *const repartition, const uint size) {
-		for(int pixel = 0; pixel < size; pixel ++) {
-			value[pixel] = (repartition[(int)value[pixel]*255] - repartition[0])/((float)size-1);
+	__global__ void equalizationCUDA(float *value, const int *const repartition, const uint imgWidth, const uint imgHeight) {
+		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) 
+		{
+			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) 
+			{
+				const int idPixel = x + y * imgWidth;
+				value[idPixel] = (repartition[(int)value[idPixel]*256] - repartition[0])/((float)(imgWidth*imgHeight)-1);
+			}
 		}
 	}
 
@@ -137,7 +170,7 @@ namespace IMAC
 			for (uint i = 0; i < a.size(); ++i)
 			{
 				// Floating precision can cause small difference between host and device
-				if (	std::abs(a[i].x - b[i].x) > 2 || std::abs(a[i].z - b[i].z) > 2 )
+				if (    std::abs(a[i].x - b[i].x) > 2 || std::abs(a[i].z - b[i].z) > 2 )
 				{
 					std::cout << "Error at index " << i << ": a = " << a[i] << " - b = " << b[i] << " - " << std::abs(a[i].x - b[i].x) << std::endl;
 					error = true;
@@ -155,10 +188,10 @@ namespace IMAC
 		}
 	}
 	
-    void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, 
-    				const uint nbLevels,
+	void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, 
+					const uint nbLevels,
 					const std::vector<uchar3> &resultCPU, // Just for comparison
-                    std::vector<uchar3> &output) {
+					std::vector<uchar3> &output) {
 
 		ChronoGPU chrGPU;
 
@@ -178,23 +211,25 @@ namespace IMAC
 		const uint imageSize = imgHeight * imgWidth;
 
 		const size_t bytesImg = imageSize * sizeof(uchar3);
-		std::cout 	<< "Allocating input and output images on GPU" << std::endl;
+		std::cout   << "Allocating input and output images on GPU" << std::endl;
 		HANDLE_ERROR(cudaMalloc((void**)&dev_input, bytesImg));
 		HANDLE_ERROR(cudaMalloc((void**)&dev_output, bytesImg));
 
 		const size_t bytesFloatImg = imageSize * sizeof(float);
-		std::cout 	<< "Allocating hue, saturation and value on GPU" << std::endl;
+		std::cout   << "Allocating hue, saturation and value on GPU" << std::endl;
 		HANDLE_ERROR(cudaMalloc((void**)&dev_hue, bytesFloatImg));
 		HANDLE_ERROR(cudaMalloc((void**)&dev_saturation, bytesFloatImg));
 		HANDLE_ERROR(cudaMalloc((void**)&dev_value, bytesFloatImg));
 
 		const size_t bytesLevel = nbLevels * sizeof(int);
-		std::cout 	<< "Allocating histogram and repartition on GPU" << std::endl;
+		std::cout   << "Allocating histogram and repartition on GPU" << std::endl;
 		HANDLE_ERROR(cudaMalloc((void**)&dev_histogram, bytesLevel));
 		HANDLE_ERROR(cudaMalloc((void**)&dev_repartition, bytesLevel));
 
 		std::cout << "Copy data from host to device" << std::endl;
 		HANDLE_ERROR(cudaMemcpy(dev_input, input.data(), bytesImg, cudaMemcpyHostToDevice));
+
+		HANDLE_ERROR(cudaMemset(dev_histogram, 0, bytesLevel));
 
 
 		/****** Configure kernel ******/
@@ -210,16 +245,19 @@ namespace IMAC
 
 		rgbToHsvCUDA<<< nbBlocks, nbThreads >>>(dev_input, imgWidth, imgHeight, dev_hue, dev_saturation, dev_value);
 
-		// histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imageSize);
+		histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+		std::vector<int> test(256);
+		HANDLE_ERROR(cudaMemcpy(test.data(), dev_histogram, bytesLevel, cudaMemcpyDeviceToHost)); 
+		for(int i = 0; i < 256; ++i) std::cout << test[i] << std::endl;
 
-		// cumulativeDistributionCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_repartition, nbLevels);
+		cumulativeDistributionCUDA<<< 1, 256, 256*sizeof(int) >>>(dev_histogram, dev_repartition, nbLevels);
 
-		// equalizationCUDA<<< nbBlocks, nbThreads >>>(dev_value, dev_repartition, imageSize);
+		equalizationCUDA<<< nbBlocks, nbThreads >>>(dev_value, dev_repartition, imgWidth, imgHeight);
 
 		hsvToRgbCUDA<<< nbBlocks, nbThreads >>>(dev_hue, dev_saturation, dev_value, imgWidth, imgHeight, dev_output);
 
 		chrGPU.stop();
-		std::cout 	<< "-> Done: " << chrGPU.elapsedTime() << " ms" << std::endl;
+		std::cout   << "-> Done: " << chrGPU.elapsedTime() << " ms" << std::endl;
 
 
 
