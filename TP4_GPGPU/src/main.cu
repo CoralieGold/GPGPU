@@ -150,20 +150,36 @@ namespace IMAC
 		std::vector<float> saturation(size);
 		std::vector<float> value(size);
 
+		ChronoCPU chrCPU2;
+		chrCPU2.start();
 		rgbToHsvCPU(input, hue, saturation, value);
+		chrCPU2.stop();
+		std::cout 	<< " RGB TO HSV Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		std::vector<int> histogram(NB_LEVELS);
+		chrCPU2.start();
 		histogramCPU(histogram, value);
+		chrCPU2.stop();
+		std::cout 	<< " HISTOGRAM Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		std::vector<int> repartition(NB_LEVELS);
+		chrCPU2.start();
 		cumulativeDistributionCPU(histogram, repartition);
-		
+		chrCPU2.stop();
+		std::cout 	<< " REPARTITION Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
+
+		chrCPU2.start();
 		equalizationCPU(value, repartition);
+		chrCPU2.stop();
+		std::cout 	<< " EQUALIZATION Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		// std::vector<int> histogramEqualized(NB_LEVELS);
 		// histogramCPU(histogramEqualized, value);
 
+		chrCPU2.start();
 		hsvToRgbCPU(hue, saturation, value, output);
+		chrCPU2.stop();
+		std::cout 	<< " HSV TO RGB Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		chrCPU.stop();
 		std::cout 	<< " -> Done : " << chrCPU.elapsedTime() << " ms" << std::endl << std::endl;

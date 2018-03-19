@@ -104,34 +104,27 @@ namespace IMAC
 	}
 
 	__global__ void cumulativeDistributionCUDA(const int *const histogram, int *repartition, const uint nbLevels) {
-		// Mémoire partagée
-		extern __shared__ uint dev_repartition[];
-
-		// Identifiants du thread en local et global
-		int local_idx = threadIdx.x;
-		int global_idx = local_idx + blockIdx.x * blockDim.x;
-
-		// Eviter les erreurs d'accès mémoire
-		if(global_idx < nbLevels)
-			// Remplissage du tableau partagé
-			dev_repartition[local_idx] = histogram[global_idx];
-		else
-			dev_repartition[local_idx] = 0;
+		repartition[threadIdx.x] = histogram[threadIdx.x];
 		__syncthreads();
 
-
-		for(unsigned int stage = 1; stage < blockDim.x; stage *= 2)  {
-			int index = 2 * stage * local_idx;
-			if(index < blockDim.x) {
-				// Stockage de la valeur max
-				dev_repartition[index] = dev_repartition[index + stage] + dev_repartition[index];
+		int step = 1;
+		while(step <= nbLevels) {
+			int index = (threadIdx.x + 1) * step * 2 - 1;
+			if(index < 2 * nbLevels) {
+				repartition[index] += repartition[index - step];
 			}
+			step *= 2;
 			__syncthreads();
 		}
 
-		// Garder la valeur max en résultat
-		if(local_idx == 0) {
-			repartition[blockIdx.x] = dev_repartition[0];
+		step = nbLevels / 2;
+		while(step > 0) {
+			int index = (threadIdx.x + 1) * step * 2 - 1;
+			if(index < 2 * nbLevels) {
+				repartition[index + step] += repartition[index];
+			}
+			step /= 2;
+			__syncthreads();
 		}
 	}
 
@@ -152,7 +145,9 @@ namespace IMAC
 			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) 
 			{
 				const int idPixel = x + y * imgWidth;
-				value[idPixel] = (repartition[(int)value[idPixel]*256] - repartition[0])/((float)(imgWidth*imgHeight)-1);
+			    int myItem = value[idPixel]*256;
+			    int myBin = myItem % 256;
+				value[idPixel] = (float)(repartition[myBin] - repartition[0])/((imgWidth*imgHeight)-1.f);
 			}
 		}
 	}
@@ -243,18 +238,32 @@ namespace IMAC
 		/****** Histogram Equalization ******/
 		chrGPU.start();
 
+		ChronoGPU chrCPU2;
+		chrCPU2.start();
 		rgbToHsvCUDA<<< nbBlocks, nbThreads >>>(dev_input, imgWidth, imgHeight, dev_hue, dev_saturation, dev_value);
+		chrCPU2.stop();
+		std::cout 	<< " RGB TO HSV Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
+		chrCPU2.start();
 		histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
-		std::vector<int> test(256);
-		HANDLE_ERROR(cudaMemcpy(test.data(), dev_histogram, bytesLevel, cudaMemcpyDeviceToHost)); 
-		for(int i = 0; i < 256; ++i) std::cout << test[i] << std::endl;
+		chrCPU2.stop();
+		std::cout 	<< " HISTOGRAM Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
+		chrCPU2.start();
 		cumulativeDistributionCUDA<<< 1, 256, 256*sizeof(int) >>>(dev_histogram, dev_repartition, nbLevels);
+		chrCPU2.stop();
+		std::cout 	<< " REPARTITION Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
+		chrCPU2.start();
 		equalizationCUDA<<< nbBlocks, nbThreads >>>(dev_value, dev_repartition, imgWidth, imgHeight);
+		chrCPU2.stop();
+		std::cout 	<< " EQUALIZATION Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
+		chrCPU2.start();
 		hsvToRgbCUDA<<< nbBlocks, nbThreads >>>(dev_hue, dev_saturation, dev_value, imgWidth, imgHeight, dev_output);
+		chrCPU2.stop();
+		std::cout 	<< " HSV TO RGB Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
+
 
 		chrGPU.stop();
 		std::cout   << "-> Done: " << chrGPU.elapsedTime() << " ms" << std::endl;
