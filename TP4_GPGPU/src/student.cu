@@ -10,6 +10,9 @@
 #include "student.hpp"
 #include "chronoGPU.hpp"
 
+// #define USE_NAIVE
+#define USE_CONSTANT
+
 namespace IMAC
 {
 	// For image comparison
@@ -27,9 +30,9 @@ namespace IMAC
 			{
 				const int idPixel = x + y * imgWidth;
 
-				float red = (float)input[idPixel].x / 255.f;
-				float green = (float)input[idPixel].y / 255.f;
-				float blue = (float)input[idPixel].z / 255.f;
+				float red = (float)input[idPixel].x / 256.f;
+				float green = (float)input[idPixel].y / 256.f;
+				float blue = (float)input[idPixel].z / 256.f;
 
 				float cMax = fmax(fmax(red, green), blue);
 				float cMin = fmin(fmin(red, green), blue);
@@ -96,9 +99,9 @@ namespace IMAC
 					blue = x;
 				}
 
-				output[idOut].x = (uchar)((red + m) * 255.f);
-				output[idOut].y = (uchar)((green + m) * 255.f);
-				output[idOut].z = (uchar)((blue + m) * 255.f);
+				output[idOut].x = (uchar)((red + m) * 256.f);
+				output[idOut].y = (uchar)((green + m) * 256.f);
+				output[idOut].z = (uchar)((blue + m) * 256.f);
 			}
 		}
 	}
@@ -130,11 +133,31 @@ namespace IMAC
 
 	__global__ void histogramCUDA(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
 		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) {
-			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x)  { 
+			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) { 
 				int myId = x + y * imgWidth;
 			    int myItem = value[myId]*256;
 			    int myBin = myItem % nbLevels;
 				atomicAdd(&histogram[myBin], 1);
+			}
+		}
+	}
+
+	__global__ void histogramCUDA_shared(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
+		extern __shared__ int sharedHistogram[];
+		for (int i = threadIdx.x; i < 256; i += blockDim.x) {
+			sharedHistogram[i] = 0;
+			__syncthreads();
+		}
+
+		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) {
+			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) { 
+				int myId = x + y * imgWidth;
+			    int myItem = value[myId]*256;
+			    int myBin = myItem % 256;
+				atomicAdd(&sharedHistogram[myBin], 1);
+				
+				histogram[myBin] += sharedHistogram[myBin];
+				__syncthreads();
 			}
 		}
 	}
@@ -219,12 +242,13 @@ namespace IMAC
 		const size_t bytesLevel = nbLevels * sizeof(int);
 		std::cout   << "Allocating histogram and repartition on GPU" << std::endl;
 		HANDLE_ERROR(cudaMalloc((void**)&dev_histogram, bytesLevel));
+		HANDLE_ERROR(cudaMemset(dev_histogram, 0, bytesLevel));
 		HANDLE_ERROR(cudaMalloc((void**)&dev_repartition, bytesLevel));
 
 		std::cout << "Copy data from host to device" << std::endl;
 		HANDLE_ERROR(cudaMemcpy(dev_input, input.data(), bytesImg, cudaMemcpyHostToDevice));
 
-		HANDLE_ERROR(cudaMemset(dev_histogram, 0, bytesLevel));
+		
 
 
 		/****** Configure kernel ******/
@@ -245,9 +269,13 @@ namespace IMAC
 		std::cout 	<< " RGB TO HSV Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		chrCPU2.start();
-		histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+		// histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+		histogramCUDA_shared<<< nbBlocks, nbThreads, 256*sizeof(int) >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
 		chrCPU2.stop();
 		std::cout 	<< " HISTOGRAM Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
+		// std::vector<int> test(256);
+		// HANDLE_ERROR(cudaMemcpy(test.data(), dev_histogram, 256*sizeof(int), cudaMemcpyDeviceToHost)); 
+		// for(int i = 0; i < 256; i ++) std::cout << test[i] << std::endl;
 
 		chrCPU2.start();
 		cumulativeDistributionCUDA<<< 1, 256, 256*sizeof(int) >>>(dev_histogram, dev_repartition, nbLevels);

@@ -51,9 +51,9 @@ namespace IMAC
 		float red, green, blue, cMax, cMin, delta;
 		for(int pixel = 0; pixel < input.size(); pixel ++) {
 
-			red = (float)input[pixel].x / 255.f;
-			green = (float)input[pixel].y / 255.f;
-			blue = (float)input[pixel].z / 255.f;
+			red = (float)input[pixel].x / 256.f;
+			green = (float)input[pixel].y / 256.f;
+			blue = (float)input[pixel].z / 256.f;
 
 			cMax = (float)std::max(std::max(red, green), blue);
 			cMin = (float)std::min(std::min(red, green), blue);
@@ -112,9 +112,9 @@ namespace IMAC
 				blue = x;
 			}
 
-			output[pixel].x = (uchar)((red + m) * 255.f);
-			output[pixel].y = (uchar)((green + m) * 255.f);
-			output[pixel].z = (uchar)((blue + m) * 255.f);
+			output[pixel].x = (uchar)((red + m) * 256.f);
+			output[pixel].y = (uchar)((green + m) * 256.f);
+			output[pixel].z = (uchar)((blue + m) * 256.f);
 		}
 	}
 
@@ -128,13 +128,13 @@ namespace IMAC
 
 	void histogramCPU(std::vector<int> &histogram, const std::vector<float> &value) {
 	    for(int pixel = 0; pixel < value.size(); pixel++) {
-	 		histogram[value[pixel]*255] += 1;     
+	 		histogram[value[pixel]*256] += 1;     
 	    }
 	}
 
 	void equalizationCPU(std::vector<float> &value, const std::vector<int> &repartition) {
 		for(int pixel = 0; pixel < value.size(); pixel ++) {
-			value[pixel] = (repartition[value[pixel]*255] - repartition[0])/((float)value.size()-1);
+			value[pixel] = (repartition[value[pixel]*256] - repartition[0])/((float)value.size()-1);
 		}
 	}
 
