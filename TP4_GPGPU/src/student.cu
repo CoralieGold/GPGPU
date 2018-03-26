@@ -10,8 +10,8 @@
 #include "student.hpp"
 #include "chronoGPU.hpp"
 
-// #define USE_NAIVE
-#define USE_CONSTANT
+#define WITHOUT_OPTIM
+// #define OPTIM_1
 
 namespace IMAC
 {
@@ -131,6 +131,7 @@ namespace IMAC
 		}
 	}
 
+	#ifdef WITHOUT_OPTIM
 	__global__ void histogramCUDA(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
 		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) {
 			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) { 
@@ -141,7 +142,9 @@ namespace IMAC
 			}
 		}
 	}
+	#endif
 
+	#ifdef OPTIM_1
 	__global__ void histogramCUDA_shared(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
 		extern __shared__ int sharedHistogram[];
 		for (int i = threadIdx.x; i < 256; i += blockDim.x) {
@@ -161,6 +164,7 @@ namespace IMAC
 			}
 		}
 	}
+	#endif
 
 	__global__ void equalizationCUDA(float *value, const int *const repartition, const uint imgWidth, const uint imgHeight) {
 		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) 
@@ -269,8 +273,12 @@ namespace IMAC
 		std::cout 	<< " RGB TO HSV Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		chrCPU2.start();
-		// histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+		#ifdef WITHOUT_OPTIM
+		histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+		#endif
+		#ifdef OPTIM_1
 		histogramCUDA_shared<<< nbBlocks, nbThreads, 256*sizeof(int) >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+		#endif
 		chrCPU2.stop();
 		std::cout 	<< " HISTOGRAM Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 		// std::vector<int> test(256);
