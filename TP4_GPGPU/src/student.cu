@@ -11,7 +11,9 @@
 #include "chronoGPU.hpp"
 
 #define WITHOUT_OPTIM
-// #define OPTIM_1
+// #define OPTIM_SHARED_MEM
+// #define OPTIM_TEXTURE_1D
+#define OPTIM_CONSTANT_MEM
 
 namespace IMAC
 {
@@ -21,6 +23,16 @@ namespace IMAC
 		return os; 
 	}
 
+#ifdef OPTIM_TEXTURE_1D
+	texture<uchar3, cudaTextureType1D, cudaReadModeElementType> t_in1D;
+#endif
+
+#ifdef OPTIM_CONSTANT_MEM
+	__device__ __constant__ int c_histogram[225];
+#endif
+
+
+#ifdef WITHOUT_OPTIM
 	__global__ void rgbToHsvCUDA(const uchar3 *const input, const uint imgWidth, const uint imgHeight, float *hue, float *saturation, float *value) {
 
 		
@@ -52,6 +64,8 @@ namespace IMAC
 			}
 		}
 	}
+
+#endif
 
 	__global__ void hsvToRgbCUDA(const float *const hue, const float *const saturation, 
 		const float *const value, const uint imgWidth, const uint imgHeight, uchar3 *output) {
@@ -106,6 +120,42 @@ namespace IMAC
 		}
 	}
 
+#ifdef OPTIM_TEXTURE_1D
+	__global__ void rgbToHsvCUDA(const uint imgWidth, const uint imgHeight, float *hue, float *saturation, float *value) {
+
+		
+		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) 
+		{
+			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) 
+			{
+				const uint idPixel = x + y * imgWidth;
+				uchar3 in = tex1Dfetch<uchar3>(t_in1D, idPixel); // Get data from 1D texture
+
+				float red = (float)in.x / 256.f;
+				float green = (float)in.y / 256.f;
+				float blue = (float)in.z / 256.f;
+
+				float cMax = fmax(fmax(red, green), blue);
+				float cMin = fmin(fmin(red, green), blue);
+				float delta = (float)(cMax - cMin);
+
+				hue[idPixel] = 0.f;
+				if(cMax == red)        hue[idPixel] = 60.f * fmod(((green - blue) / delta), 6.f);
+				else if(cMax == green) hue[idPixel] = 60.f * (((blue - red) / delta) + 2.f);
+				else if(cMax == blue)  hue[idPixel] = 60.f * (((red - green) / delta) + 4.f);
+				else                   hue[idPixel] = 0.f;
+				if(hue[idPixel] < 0.f) hue[idPixel] += 360.f;
+
+				if(cMax != 0.f) saturation[idPixel] = (float)(delta / cMax);
+				else saturation[idPixel] = 0.f;
+
+				value[idPixel] = cMax;
+			}
+		}
+	}
+#endif
+
+#ifdef WITHOUT_OPTIM
 	__global__ void cumulativeDistributionCUDA(const int *const histogram, int *repartition, const uint nbLevels) {
 		repartition[threadIdx.x] = histogram[threadIdx.x];
 		__syncthreads();
@@ -130,8 +180,36 @@ namespace IMAC
 			__syncthreads();
 		}
 	}
+#endif
 
-	#ifdef WITHOUT_OPTIM
+#ifdef OPTIM_CONSTANT_MEM
+	__global__ void cumulativeDistributionCUDA(int *repartition, const uint nbLevels) {
+		repartition[threadIdx.x] = c_histogram[threadIdx.x];
+		__syncthreads();
+
+		int step = 1;
+		while(step <= nbLevels) {
+			int index = (threadIdx.x + 1) * step * 2 - 1;
+			if(index < 2 * nbLevels) {
+				repartition[index] += repartition[index - step];
+			}
+			step *= 2;
+			__syncthreads();
+		}
+
+		step = nbLevels / 2;
+		while(step > 0) {
+			int index = (threadIdx.x + 1) * step * 2 - 1;
+			if(index < 2 * nbLevels) {
+				repartition[index + step] += repartition[index];
+			}
+			step /= 2;
+			__syncthreads();
+		}
+	}
+#endif
+
+#ifdef WITHOUT_OPTIM
 	__global__ void histogramCUDA(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
 		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) {
 			for(uint x = blockIdx.x * blockDim.x + threadIdx.x; x < imgWidth; x += gridDim.x * blockDim.x) { 
@@ -142,10 +220,10 @@ namespace IMAC
 			}
 		}
 	}
-	#endif
+#endif
 
-	#ifdef OPTIM_1
-	__global__ void histogramCUDA_shared(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
+#ifdef OPTIM_SHARED_MEM
+	__global__ void histogramCUDA(int *histogram, const float *const value, const uint imgWidth, const uint imgHeight, const uint nbLevels) {
 		extern __shared__ int sharedHistogram[];
 		for (int i = threadIdx.x; i < 256; i += blockDim.x) {
 			sharedHistogram[i] = 0;
@@ -164,7 +242,7 @@ namespace IMAC
 			}
 		}
 	}
-	#endif
+#endif
 
 	__global__ void equalizationCUDA(float *value, const int *const repartition, const uint imgWidth, const uint imgHeight) {
 		for(uint y = blockIdx.y * blockDim.y + threadIdx.y; y < imgHeight; y += gridDim.y * blockDim.y) 
@@ -209,7 +287,7 @@ namespace IMAC
 			std::cout << " -> Well done!" << std::endl;
 		}
 	}
-	
+
 	void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, 
 					const uint nbLevels,
 					const std::vector<uchar3> &resultCPU, // Just for comparison
@@ -252,7 +330,10 @@ namespace IMAC
 		std::cout << "Copy data from host to device" << std::endl;
 		HANDLE_ERROR(cudaMemcpy(dev_input, input.data(), bytesImg, cudaMemcpyHostToDevice));
 
-		
+#ifdef USE_TEXTURE_1D
+		// Bind 1D texture
+		HANDLE_ERROR(cudaBindTexture(NULL, t_in1D, dev_input, bytesImg));
+#endif
 
 
 		/****** Configure kernel ******/
@@ -268,25 +349,42 @@ namespace IMAC
 
 		ChronoGPU chrCPU2;
 		chrCPU2.start();
+#ifdef WITHOUT_OPTIM
 		rgbToHsvCUDA<<< nbBlocks, nbThreads >>>(dev_input, imgWidth, imgHeight, dev_hue, dev_saturation, dev_value);
+#endif
+#ifdef OPTIM_TEXTURE_1D
+		rgbToHsvCUDA<<< nbBlocks, nbThreads >>>(imgWidth, imgHeight, dev_hue, dev_saturation, dev_value);
+#endif
 		chrCPU2.stop();
 		std::cout 	<< " RGB TO HSV Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
 		chrCPU2.start();
-		#ifdef WITHOUT_OPTIM
+#ifdef WITHOUT_OPTIM
 		histogramCUDA<<< nbBlocks, nbThreads >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
-		#endif
-		#ifdef OPTIM_1
-		histogramCUDA_shared<<< nbBlocks, nbThreads, 256*sizeof(int) >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
-		#endif
+#endif
+#ifdef OPTIM_SHARED_MEM
+		histogramCUDA<<< nbBlocks, nbThreads, 256*sizeof(int) >>>(dev_histogram, dev_value, imgWidth, imgHeight, nbLevels);
+#endif
 		chrCPU2.stop();
 		std::cout 	<< " HISTOGRAM Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 		// std::vector<int> test(256);
 		// HANDLE_ERROR(cudaMemcpy(test.data(), dev_histogram, 256*sizeof(int), cudaMemcpyDeviceToHost)); 
 		// for(int i = 0; i < 256; i ++) std::cout << test[i] << std::endl;
 
+#ifdef OPTIM_CONSTANT_MEM
+		int* test[256];
+		HANDLE_ERROR(cudaMemcpy(&test, dev_histogram, 256*sizeof(int), cudaMemcpyDeviceToHost)); 
+		// Copy constant memory
+		HANDLE_ERROR(cudaMemcpyToSymbol(c_histogram, &test, bytesLevel));
+#endif
+
 		chrCPU2.start();
+#ifdef WITHOUT_OPTIM
 		cumulativeDistributionCUDA<<< 1, 256, 256*sizeof(int) >>>(dev_histogram, dev_repartition, nbLevels);
+#endif
+#ifdef OPTIM_CONSTANT_MEM
+		cumulativeDistributionCUDA<<< 1, 256, 256*sizeof(int) >>>(dev_repartition, nbLevels);
+#endif
 		chrCPU2.stop();
 		std::cout 	<< " REPARTITION Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
@@ -316,12 +414,18 @@ namespace IMAC
 
 
 		/****** Free arrays on device ******/
+#ifdef WITHOUT_OPTIM
 		cudaFree(dev_input);
+#endif
 		cudaFree(dev_output);
 		cudaFree(dev_hue);
 		cudaFree(dev_saturation);
 		cudaFree(dev_value);
 		cudaFree(dev_histogram);
 		cudaFree(dev_repartition);
+
+#ifdef OPTIM_TEXTURE_1D
+		HANDLE_ERROR(cudaUnbindTexture(t_in1D));
+#endif
 	}
 }
