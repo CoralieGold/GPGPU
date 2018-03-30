@@ -32,6 +32,7 @@ namespace IMAC
 		exit(EXIT_FAILURE);
 	}
 
+
 	// Compate two arrays (a and b) of size n. Return true if equal
 	bool compare(std::vector<float> &a, std::vector<float> &b, const int n)
 	{
@@ -47,13 +48,17 @@ namespace IMAC
 	}
 
 
+	// Change color space of an input image from RGB to HSV
 	void rgbToHsvCPU(const std::vector<uchar3> &input, std::vector<float> &hue, std::vector<float> &saturation, std::vector<float> &value) {
+		// Based on formulas found here:
+		// https://www.rapidtables.com/convert/color/rgb-to-hsv.html
+
 		float red, green, blue, cMax, cMin, delta;
 		for(int pixel = 0; pixel < input.size(); pixel ++) {
 
-			red = (float)input[pixel].x / 256.f;
-			green = (float)input[pixel].y / 256.f;
-			blue = (float)input[pixel].z / 256.f;
+			red = (float)input[pixel].x / NB_LEVELS;
+			green = (float)input[pixel].y / NB_LEVELS;
+			blue = (float)input[pixel].z / NB_LEVELS;
 
 			cMax = (float)std::max(std::max(red, green), blue);
 			cMin = (float)std::min(std::min(red, green), blue);
@@ -73,7 +78,12 @@ namespace IMAC
 		}
 	}
 
+
+	// Change color space of an input image from HSV to RGB
 	void hsvToRgbCPU(const std::vector<float> &hue, const std::vector<float> &saturation, const std::vector<float> &value, std::vector<uchar3> &output) {
+		// Based on formulas found here:
+		// https://www.rapidtables.com/convert/color/hsv-to-rgb.html
+
 		float c, x, m, red, blue, green;
 		for(int pixel = 0; pixel < output.size(); pixel ++) {
 			c = (float)(value[pixel] * saturation[pixel]);
@@ -112,12 +122,14 @@ namespace IMAC
 				blue = x;
 			}
 
-			output[pixel].x = (uchar)((red + m) * 256.f);
-			output[pixel].y = (uchar)((green + m) * 256.f);
-			output[pixel].z = (uchar)((blue + m) * 256.f);
+			output[pixel].x = (uchar)((red + m) * NB_LEVELS);
+			output[pixel].y = (uchar)((green + m) * NB_LEVELS);
+			output[pixel].z = (uchar)((blue + m) * NB_LEVELS);
 		}
 	}
 
+
+	// Get repartition of the histogram
 	void cumulativeDistributionCPU(const std::vector<int> &histogram, std::vector<int> &repartition) {
 		int distribution = 0;
 		for(int level = 0; level < NB_LEVELS; ++ level) {
@@ -126,29 +138,37 @@ namespace IMAC
 		}
 	}
 
+
+	// Compute an histogram from the value component
 	void histogramCPU(std::vector<int> &histogram, const std::vector<float> &value) {
 	    for(int pixel = 0; pixel < value.size(); pixel++) {
-	 		histogram[value[pixel]*256] += 1;     
+	 		histogram[value[pixel]*NB_LEVELS] += 1;     
 	    }
 	}
 
+
+	// Equalization of the values, from the repartition
 	void equalizationCPU(std::vector<float> &value, const std::vector<int> &repartition) {
 		for(int pixel = 0; pixel < value.size(); pixel ++) {
-			value[pixel] = (repartition[value[pixel]*256] - repartition[0])/((float)value.size()-1);
+			value[pixel] = (repartition[value[pixel]*NB_LEVELS] - repartition[0])/((float)value.size()-1);
 		}
 	}
 
+
+	// Main function to equalize the histogram of the input image, and save it as the output image
 	void histogramEqualizationCPU(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, std::vector<uchar3> &output)
 	{
 		std::cout << "Process on CPU (sequential)"	<< std::endl;
 		ChronoCPU chrCPU;
 		chrCPU.start();
 		
-		int size = imgWidth*imgHeight;
+		int imgSize = imgWidth*imgHeight;
 
-		std::vector<float> hue(size);
-		std::vector<float> saturation(size);
-		std::vector<float> value(size);
+		std::vector<float> hue(imgSize);
+		std::vector<float> saturation(imgSize);
+		std::vector<float> value(imgSize);
+
+		// Start equalization on histogram
 
 		ChronoCPU chrCPU2;
 		chrCPU2.start();
@@ -173,13 +193,12 @@ namespace IMAC
 		chrCPU2.stop();
 		std::cout 	<< " EQUALIZATION Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
 
-		// std::vector<int> histogramEqualized(NB_LEVELS);
-		// histogramCPU(histogramEqualized, value);
-
 		chrCPU2.start();
 		hsvToRgbCPU(hue, saturation, value, output);
 		chrCPU2.stop();
 		std::cout 	<< " HSV TO RGB Done : " << chrCPU2.elapsedTime() << " ms" << std::endl << std::endl;
+
+		// End equalization on histogram
 
 		chrCPU.stop();
 		std::cout 	<< " -> Done : " << chrCPU.elapsedTime() << " ms" << std::endl << std::endl;

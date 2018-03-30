@@ -17,8 +17,11 @@
 namespace IMAC
 {
 	void studentJob(const std::vector<uchar3> &input, const uint imgWidth, const uint imgHeight, const uint nbLevels,
-					const std::vector<uchar3> &resultCPU, // Just for comparison
-                    std::vector<uchar3> &output);
+					const std::vector<uchar3> &resultCPU, std::vector<uchar3> &output);
+
+	std::ostream &operator <<(std::ostream &os, const uchar3 &c);
+
+	void compareImages(const std::vector<uchar3> &a, const std::vector<uchar3> &b);
 }
 
 #endif
